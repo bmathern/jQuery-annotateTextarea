@@ -1,6 +1,7 @@
 /**
- * jQuery highlightTextarea 2.0
- *
+ * jQuery annotateTextarea
+ * based on jQuery highlighttextarea 2.0
+ * 
  * Copyright 2012, Damien "Mistic" Sorel
  *    http://www.strangeplanet.fr
  *
@@ -26,7 +27,7 @@
      */
     $.fn.highlightTextarea = function(options) {
         // callable public methods
-        var callable = ['highlight','enable','disable','setOptions','setWords'];
+        var callable = ['highlight','enable','disable','setOptions','setAnnotations'];
         
         var plugin = $(this).data('highlightTextarea');
         
@@ -67,7 +68,7 @@
      * Defaults
      */
     $.fn.highlightTextarea.defaults = {
-        words:         [],
+		annotations:   [],
         color:         '#ffff00',
         caseSensitive: true,
         resizable:     false,
@@ -179,17 +180,14 @@
         }
 
         /*
-         * update words list
+         * update annotations list
          * scope: public
          */
-        this.setWords = function(words) {
-            if (typeof words !== 'string' && !(words instanceof Array)) {
-                words = [];
+        this.setAnnotations = function(annotations) {
+            if (!(annotations instanceof Array)) {
+                annotations = [];
             }
-            else if (typeof words === 'string') {
-                words = [words];
-            }
-            this.options.words = words;
+            this.options.annotations = annotations;
             
             if (this.$textarea.data('highlightTextareaEvents')===true) {
                 this.highlight();
@@ -319,17 +317,32 @@
         this.applyText = function(text) {
             text = this.html_entities(text);
             
-            if (this.options.words.length > 0) {
-                replace = new Array();
-                
-                for (var i=0; i<this.options.words.length; i++) {
-                  replace.push(this.html_entities(this.options.words[i]));
-                }
-                
-                text = text.replace(
-                  new RegExp('('+replace.join('|')+')', this.options.regParam), 
-                  "<span class=\"highlight\" style=\"background-color:"+this.options.color+";\">$1</span>"
-                );
+            if (this.options.annotations.length > 0) {
+				var prev_pos = 0;
+				var replace = new Array();
+				
+				var sorted_annotations = this.options.annotations.sort(
+					function(a,b) {
+						return a.begin -  b.begin;
+					});                
+
+				sorted_annotations.forEach(function(a) {
+					if(a.begin !== 0) {
+						replace.push(this.html_entities(text.substr(prev_pos,a.begin-prev_pos)));
+					}
+					replace.push([
+						'<span class="',
+						a.class,' ',a.label,'">',
+						this.html_entities(text.substr(a.begin,a.length)),
+						'</span>'
+					].join(''));
+					prev_pos = a.begin + a.length;
+				},this);
+				if(prev_pos < text.length -1) {
+					replace.push(this.html_entities(text.substr(prev_pos)));
+				}
+				
+				text = replace.join('');
             }
             
             this.$highlighter.html(text);
@@ -358,14 +371,16 @@
               (this.$textarea[0].clientHeight < this.$textarea[0].scrollHeight && this.$textarea.css('overflow') != 'hidden' && this.$textarea.css('overflow-y') != 'hidden')
               || this.$textarea.css('overflow') == 'scroll' || this.$textarea.css('overflow-y') == 'scroll'
             ) {
-                var padding = 18;
+                var padding = 16;
+                //var padding = 18;
             }
             else {
-                var padding = 5;
+				var padding = 1;
+                //var padding = 5;
             }
-            
+            // TODO HERE THERE IS A PBM...
             this.$highlighter.css({
-                'width':         this.$textarea.width()-padding,
+             //   'width':         this.$textarea.width()-padding,
                 'height':        this.$textarea.height()+this.$textarea.scrollTop(),
                 'padding-right': padding,
                 'top':           -this.$textarea.scrollTop()
